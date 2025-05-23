@@ -40,7 +40,7 @@ type CoursePromotion struct {
 	CourseAttribute  string   `json:"course_attribute" binding:"required"`
 	ElectiveField    string   `json:"elective_field"`
 	Instructor       string   `json:"instructor" binding:"required"`
-	Credit           float64  `json:"credit" binding:"required"`
+	Credit           float32  `json:"credit" binding:"required"`
 	Content          string   `json:"content" binding:"required"`
 	Attendance       string   `json:"attendance" binding:"required"`
 	Assessment       string   `json:"assessment" binding:"required"`
@@ -374,14 +374,14 @@ func submitCoursePromotion(c *gin.Context) {
 		return
 	}
 
-	// 验证选修课领域
-	if input.CourseAttribute == "通识选修课（公选课）" && input.ElectiveField == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "通识选修课必须指定选修领域",
-		})
-		return
-	}
+	// // 验证选修课领域
+	// if input.CourseAttribute == "通识选修课（公选课）" && input.ElectiveField == "" {
+	// 	c.JSON(http.StatusBadRequest, gin.H{
+	// 		"success": false,
+	// 		"error":   "通识选修课必须指定选修领域",
+	// 	})
+	// 	return
+	// }
 
 	// 准备要保存的数据
 	promotionData := map[string]any{
