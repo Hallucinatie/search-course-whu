@@ -35,6 +35,20 @@ type SurveyInput struct {
 	Suggestions string  `json:"suggestions"`
 }
 
+type CoursePromotion struct {
+	CourseName       string   `json:"course_name" binding:"required"`
+	CourseAttribute  string   `json:"course_attribute" binding:"required"`
+	ElectiveField    string   `json:"elective_field"`
+	Instructor       string   `json:"instructor" binding:"required"`
+	Credit           float64  `json:"credit" binding:"required"`
+	Content          string   `json:"content" binding:"required"`
+	Attendance       string   `json:"attendance" binding:"required"`
+	Assessment       string   `json:"assessment" binding:"required"`
+	Highlights       string   `json:"highlights" binding:"required"`
+	SuitableStudents string   `json:"suitable_students" binding:"required"`
+	Resources        []string `json:"resources"`
+}
+
 func main() {
 	// 初始化Redis客户端
 	redisClient = redis.NewClient(&redis.Options{
@@ -72,6 +86,7 @@ func main() {
 	r.GET("/statistic", getStatistics)
 	r.GET("/remote_statistic", proxyToRemoteStatistic)
 	r.POST("/submit_survey", submitSurvey)
+	r.POST("/course_promotion", submitCoursePromotion)
 
 	// 启动服务器
 	fmt.Println("Server running on http://0.0.0.0:8082")
@@ -345,5 +360,64 @@ func submitSurvey(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"message": "问卷提交成功",
 		"data":    surveyData,
+	})
+}
+
+func submitCoursePromotion(c *gin.Context) {
+	var input CoursePromotion
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的输入数据: " + err.Error(),
+		})
+		return
+	}
+
+	// 验证选修课领域
+	if input.CourseAttribute == "通识选修课（公选课）" && input.ElectiveField == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "通识选修课必须指定选修领域",
+		})
+		return
+	}
+
+	// 准备要保存的数据
+	promotionData := map[string]any{
+		"course_name":       input.CourseName,
+		"course_attribute":  input.CourseAttribute,
+		"elective_field":    input.ElectiveField,
+		"instructor":        input.Instructor,
+		"credit":            input.Credit,
+		"content":           input.Content,
+		"attendance":        input.Attendance,
+		"assessment":        input.Assessment,
+		"highlights":        input.Highlights,
+		"suitable_students": input.SuitableStudents,
+		"resources":         strings.Join(input.Resources, "|"), // 将数组转换为字符串存储
+		"submit_time":       time.Now().UTC().Format(time.RFC3339),
+	}
+
+	// CSV 文件头
+	headers := []string{
+		"course_name", "course_attribute", "elective_field", "instructor",
+		"credit", "content", "attendance", "assessment", "highlights",
+		"suitable_students", "resources", "submit_time",
+	}
+
+	// 保存到 CSV 文件
+	err := appendToCSV("./coursePromotions.csv", promotionData, headers)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("保存课程推广数据失败: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "课程推广信息已提交",
+		"data":    promotionData,
 	})
 }
