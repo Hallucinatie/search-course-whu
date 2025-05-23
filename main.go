@@ -28,6 +28,13 @@ var (
 	ctx         = context.Background()
 )
 
+type SurveyInput struct {
+	Curricula   bool    `json:"curricula" binding:"required"`
+	Accept      string  `json:"accept" binding:"required,oneof=教学 给分"`
+	Expectation float32 `json:"expectation" binding:"required,min=1,max=10"`
+	Suggestions string  `json:"suggestions"`
+}
+
 func main() {
 	// 初始化Redis客户端
 	redisClient = redis.NewClient(&redis.Options{
@@ -64,6 +71,7 @@ func main() {
 	r.POST("/add_course", addCourse)
 	r.GET("/statistic", getStatistics)
 	r.GET("/remote_statistic", proxyToRemoteStatistic)
+	r.POST("/submit_survey", submitSurvey)
 
 	// 启动服务器
 	fmt.Println("Server running on http://0.0.0.0:8082")
@@ -305,4 +313,37 @@ func proxyToRemoteStatistic(c *gin.Context) {
 	}
 	c.Status(resp.StatusCode)
 	c.Writer.Write(body)
+}
+
+func submitSurvey(c *gin.Context) {
+	var input SurveyInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": "无效的输入数据: " + err.Error()})
+		return
+	}
+
+	// 准备CSV数据,注意按照正确的列顺序
+	surveyData := map[string]any{
+		"satisfaction": "", // 保持空值
+		"suggestions":  input.Suggestions,
+		"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		"curricula":    input.Curricula,
+		"accept":       input.Accept,
+		"expectation":  input.Expectation,
+	}
+
+	// CSV文件头部顺序必须匹配
+	headers := []string{"satisfaction", "suggestions", "timestamp", "curricula", "accept", "expectation"}
+
+	// 将数据追加到CSV文件
+	err := appendToCSV("./surveyData.csv", surveyData, headers)
+	if err != nil {
+		c.JSON(500, gin.H{"error": fmt.Sprintf("保存问卷数据失败: %v", err)})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message": "问卷提交成功",
+		"data":    surveyData,
+	})
 }
