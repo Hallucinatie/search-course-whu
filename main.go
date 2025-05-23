@@ -358,6 +358,7 @@ func submitSurvey(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
+		"success": true,
 		"message": "问卷提交成功",
 		"data":    surveyData,
 	})
