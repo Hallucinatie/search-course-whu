@@ -29,7 +29,7 @@ var (
 )
 
 type SurveyInput struct {
-	Curricula   bool    `json:"curricula" binding:"required"`
+	Curricula   bool    `json:"curricula"`
 	Accept      string  `json:"accept" binding:"required,oneof=教学 给分"`
 	Expectation float32 `json:"expectation" binding:"required,min=1,max=10"`
 	Suggestions string  `json:"suggestions"`
