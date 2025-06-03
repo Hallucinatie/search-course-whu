@@ -87,6 +87,7 @@ func main() {
 	r.GET("/remote_statistic", proxyToRemoteStatistic)
 	r.POST("/submit_survey", submitSurvey)
 	r.POST("/course_promotion", submitCoursePromotion)
+	r.GET("/course_promotion", getCoursePromotions)
 
 	// 启动服务器
 	fmt.Println("Server running on http://0.0.0.0:8082")
@@ -420,5 +421,76 @@ func submitCoursePromotion(c *gin.Context) {
 		"success": true,
 		"message": "课程推广信息已提交",
 		"data":    promotionData,
+	})
+}
+
+func getCoursePromotions(c *gin.Context) {
+	// 获取查询参数
+	courseName := c.Query("course_name")
+	instructor := c.Query("instructor")
+
+	// 读取课程推广数据
+	promotionsPath := "./coursePromotions.csv"
+	var promotions []map[string]any
+
+	// 检查文件是否存在
+	if _, err := os.Stat(promotionsPath); os.IsNotExist(err) {
+		// 文件不存在，返回空数组
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "暂无课程推广信息",
+			"data":    []map[string]any{},
+			"total":   0,
+		})
+		return
+	}
+
+	// 读取文件数据
+	allPromotions, err := CSVFileReader(promotionsPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("读取课程推广数据失败: %v", err),
+		})
+		return
+	}
+
+	// 过滤数据
+	for _, promotion := range allPromotions {
+		nameMatch := true
+		instructorMatch := true
+
+		if courseName != "" {
+			courseNameValue, _ := promotion["course_name"].(string)
+			nameMatch = strings.Contains(courseNameValue, courseName)
+		}
+
+		if instructor != "" {
+			instructorValue, _ := promotion["instructor"].(string)
+			instructorMatch = strings.Contains(instructorValue, instructor)
+		}
+
+		if nameMatch && instructorMatch {
+			// 将resources字符串转换回数组
+			if resourcesStr, ok := promotion["resources"].(string); ok && resourcesStr != "" {
+				promotion["resources"] = strings.Split(resourcesStr, "|")
+			} else {
+				promotion["resources"] = []string{}
+			}
+			promotions = append(promotions, promotion)
+		}
+	}
+
+	// 设置响应头
+	c.Header("Content-Type", "application/json; charset=utf-8")
+	c.Header("Cache-Control", "public, max-age=600") // 缓存10分钟
+
+	// 返回结果
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "查询成功",
+		"data":    promotions,
+		"total":   len(promotions),
 	})
 }
