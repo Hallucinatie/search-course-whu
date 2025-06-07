@@ -90,8 +90,8 @@ func main() {
 	r.GET("/course_promotion", getCoursePromotions)
 
 	// 启动服务器
-	fmt.Println("Server running on http://0.0.0.0:8082")
-	r.Run(":8082")
+	fmt.Println("Server running on http://127.0.0.1:8082")
+	r.Run("127.0.0.1:8082")
 }
 
 // 在应用启动时清空缓存
